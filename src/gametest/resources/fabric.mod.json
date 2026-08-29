@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "timemachine-test",
+  "version": "1.0.0",
+  "name": "Time Machine Test",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-client-gametest": [
+      "com.timemachine.test.TimeMachineClientTest"
+    ]
+  },
+  "depends": {
+    "timemachine": "*"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "timemachine",
+  "version": "${version}",
+  "name": "Time Machine",
+  "description": "A block that turns the world back to any version of Minecraft, from the four-day prototype of May 2009 to the present. Dial in Beta 1.7.3 and hunger stops draining, sprinting stops working, every swing lands full again, the Nether is not there, and anything invented after July 2011 is taken off you and held until you come forward. Dial in Classic and you are left with the blocks that existed in 2009.",
+  "authors": [
+    "Elduin"
+  ],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.timemachine.TimeMachineMod"
+    ],
+    "client": [
+      "com.timemachine.client.TimeMachineModClient"
+    ]
+  },
+  "mixins": [
+    "timemachine.mixins.json",
+    {
+      "config": "timemachine.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21.11",
+    "java": ">=21"
+  }
+}

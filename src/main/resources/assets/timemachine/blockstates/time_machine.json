@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "timemachine:block/time_machine" },
+    "facing=east": { "model": "timemachine:block/time_machine", "y": 90 },
+    "facing=south": { "model": "timemachine:block/time_machine", "y": 180 },
+    "facing=west": { "model": "timemachine:block/time_machine", "y": 270 }
+  }
+}
