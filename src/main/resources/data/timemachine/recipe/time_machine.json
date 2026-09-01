@@ -1,16 +1,14 @@
 {
+  "__comment": "Four oak planks. Not a 2x2 square -- that is exactly vanilla's crafting table, and two recipes matching the same grid is a coin flip. The four corners of the 3x3 are still four oak planks and cannot collide with anything.",
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "O": "minecraft:obsidian",
-    "R": "minecraft:redstone_block",
-    "C": "minecraft:clock",
-    "E": "minecraft:ender_eye"
+    "P": "minecraft:oak_planks"
   },
   "pattern": [
-    "OEO",
-    "RCR",
-    "OOO"
+    "P P",
+    "   ",
+    "P P"
   ],
   "result": {
     "count": 1,

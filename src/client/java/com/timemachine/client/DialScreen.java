@@ -20,6 +20,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * The dial: every version Minecraft has ever been, in a list you scroll through, with a lever at
@@ -43,6 +44,7 @@ public class DialScreen extends Screen {
     private static final int DIM = 0xFF6C7C86;
     private static final int ACCENT = 0xFF4ADFFF;
     private static final int WARN = 0xFFFFC24A;
+    private static final int REAL = 0xFF7BE08A;
 
     private final BlockPos pos;
 
@@ -56,6 +58,17 @@ public class DialScreen extends Screen {
 
     private int selected;
     private int scroll;
+
+    /** Set by the roll button, cleared as soon as the dial is turned by hand. */
+    private int rolled = -1;
+
+    /**
+     * Leaving for a real old client quits this game, so the button asks twice. Any other click
+     * on the dial disarms it — this is not a thing to do by accident halfway through a build.
+     */
+    private boolean armed;
+
+    private ButtonWidget realButton;
 
     public DialScreen(BlockPos pos) {
         super(Text.translatable("block.timemachine.time_machine"));
@@ -77,10 +90,93 @@ public class DialScreen extends Screen {
         selected = Era.index();
         scroll = Math.max(0, Math.min(selected - visibleRows() / 2, Timeline.size() - visibleRows()));
 
+        int row = top + h - 24;
         addDrawableChild(ButtonWidget.builder(Text.literal("Close"), b -> close())
-                .dimensions(left + 8, top + h - 24, 60, 18).build());
+                .dimensions(left + 8, row, 46, 18).build());
+        addDrawableChild(ButtonWidget.builder(Text.literal("Roll"), b -> roll())
+                .dimensions(left + 58, row, 60, 18).build());
+
+        realButton = ButtonWidget.builder(realLabel(), b -> reallyGo())
+                .dimensions(left + 122, row, 112, 18).build();
+        realButton.active = RealVersions.any();
+        addDrawableChild(realButton);
+
         addDrawableChild(ButtonWidget.builder(Text.literal("Engage"), b -> engage())
-                .dimensions(left + W - 8 - 90, top + h - 24, 90, 18).build());
+                .dimensions(left + W - 8 - 90, row, 90, 18).build());
+    }
+
+    /**
+     * Roll the dial. Anywhere on the timeline is fair game — the point of the roll is that you
+     * do not get to choose — but landing on the version you are already in is not a trip, so
+     * that one stop is excluded.
+     */
+    private void roll() {
+        if (Timeline.size() < 2) {
+            return;
+        }
+        int pick = pickFrom(Era.index(), Timeline.size(),
+                ThreadLocalRandom.current().nextInt(Timeline.size() - 1));
+        selected = pick;
+        rolled = pick;
+        scrollTo(pick);
+        disarm();
+    }
+
+    /**
+     * Turn a roll of {@code 0..size-2} into a stop on the dial, skipping the one you are already
+     * on. Pure and separate from the random source so it can be checked exhaustively: every other
+     * stop must be reachable, and exactly once, or the roll is quietly biased.
+     *
+     * @param here the current era's index
+     * @param size the number of stops on the dial
+     * @param raw  a roll in {@code [0, size - 1)}
+     */
+    public static int pickFrom(int here, int size, int raw) {
+        int pick = Math.max(0, Math.min(size - 2, raw));
+        return pick >= here ? pick + 1 : pick;
+    }
+
+    private void scrollTo(int index) {
+        scroll = Math.max(0, Math.min(Math.max(0, Timeline.size() - visibleRows()),
+                index - visibleRows() / 2));
+    }
+
+    private void disarm() {
+        armed = false;
+        if (realButton != null) {
+            realButton.setMessage(realLabel());
+        }
+    }
+
+    private Text realLabel() {
+        if (!RealVersions.any()) {
+            return Text.literal("None installed");
+        }
+        return Text.literal(armed ? "Sure? Click again" : "Really go there");
+    }
+
+    /**
+     * Leave 1.21.11 and open the genuine old client. Asks once, then does it: this quits the
+     * game, so the world has to be saved on the way out rather than left to a killed process.
+     */
+    private void reallyGo() {
+        RealVersions.Installed target = RealVersions.nearestTo(selected);
+        if (target == null || client == null) {
+            return;
+        }
+        if (!armed) {
+            armed = true;
+            realButton.setMessage(realLabel());
+            return;
+        }
+        if (!RealVersions.launch(target)) {
+            armed = false;
+            realButton.setMessage(Text.literal("Wouldn't start"));
+            return;
+        }
+        // The old client is already booting; hand it the machine.
+        close();
+        client.scheduleStop();
     }
 
     private int visibleRows() {
@@ -101,6 +197,8 @@ public class DialScreen extends Screen {
         int row = rowAt(click.x(), click.y());
         if (row >= 0) {
             selected = row;
+            rolled = -1;
+            disarm();
             // A second click on a row you have already picked is the same as pulling the lever.
             if (doubled) {
                 engage();
@@ -126,6 +224,8 @@ public class DialScreen extends Screen {
         if (code == GLFW.GLFW_KEY_DOWN || code == GLFW.GLFW_KEY_UP) {
             selected = Math.max(0, Math.min(Timeline.size() - 1,
                     selected + (code == GLFW.GLFW_KEY_DOWN ? 1 : -1)));
+            rolled = -1;
+            disarm();
             if (selected < scroll) {
                 scroll = selected;
             } else if (selected >= scroll + visibleRows()) {
@@ -217,16 +317,38 @@ public class DialScreen extends Screen {
                 listY + 1 + offset + thumb, PANEL_EDGE);
     }
 
+    /**
+     * What "really go there" would actually open. The timeline is fifty-odd stops and only a
+     * handful of them exist on this computer as a playable client, so the honest thing is to
+     * name the one you would get — including when it is not the one you rolled.
+     */
+    private String realLine() {
+        RealVersions.Installed target = RealVersions.nearestTo(selected);
+        if (target == null) {
+            return "No real old Minecraft installed";
+        }
+        if (target.index() == selected) {
+            return "You have this one for real";
+        }
+        return "Nearest real one: " + target.name();
+    }
+
     private void renderDetail(DrawContext context) {
         Timeline.Version version = Timeline.get(selected);
         int x = left + 166;
         int right = left + W - 8;
         int y = listY;
 
+        if (rolled == selected) {
+            context.drawText(textRenderer, Text.literal("The dial picked:"), x, y, ACCENT, false);
+            y += 11;
+        }
         context.drawText(textRenderer, Text.literal(version.name()), x, y, TEXT, false);
         y += 11;
         context.drawText(textRenderer, Text.literal(version.date() + "  ·  " + version.era()),
                 x, y, DIM, false);
+        y += 11;
+        context.drawText(textRenderer, Text.literal(realLine()), x, y, REAL, false);
         y += 13;
 
         for (var line : textRenderer.wrapLines(Text.literal(version.note()), right - x)) {

@@ -1,8 +1,10 @@
 package com.timemachine.test;
 
 import com.timemachine.Era;
+import com.timemachine.TimeMachineMod;
 import com.timemachine.Timeline;
 import com.timemachine.client.DialScreen;
+import com.timemachine.client.RealVersions;
 
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -68,6 +70,9 @@ public class TimeMachineClientTest implements FabricClientGameTest {
             beforeBetaEightHungerDoesNotDrain(context, singleplayer);
             beforeBetaEightNothingDropsExperience(context, singleplayer);
             youCannotCraftWhatHasNotBeenInvented(context, singleplayer);
+            theMachineIsFourOakPlanks(context, singleplayer);
+            theRollLandsAnywhereButHere();
+            theRealVersionsAreReallyThere();
             theNetherIsNotThereYet(context, singleplayer);
             classicLeavesYouWithAlmostNothing(context, singleplayer);
             comingHomeUndoesAllOfIt(context, singleplayer);
@@ -354,6 +359,124 @@ public class TimeMachineClientTest implements FabricClientGameTest {
                     .getFirstMatch(RecipeType.CRAFTING, input, world)
                     .isPresent();
         });
+    }
+
+    /**
+     * The machine costs four oak planks. Four planks in a 2x2 is already the crafting table, and
+     * two crafting recipes matching the same grid is a coin flip the player cannot see, so the
+     * four planks sit in the corners of the 3x3 instead. Both halves of that are checked here:
+     * the corners make a machine, and a plain 2x2 still makes a crafting table.
+     */
+    private void theMachineIsFourOakPlanks(ClientGameTestContext context,
+                                           TestSingleplayerContext singleplayer) {
+        setEra(context, singleplayer, PRESENT);
+
+        ItemStack machine = craft(singleplayer, new String[] {
+                "P P",
+                "   ",
+                "P P" });
+        assertTrue(machine.getItem() == TimeMachineMod.TIME_MACHINE.asItem(),
+                "four oak planks in the corners should make a time machine, got "
+                        + machine.getItem());
+
+        ItemStack table = craft(singleplayer, new String[] {
+                "PP ",
+                "PP ",
+                "   " });
+        assertTrue(table.getItem() == Items.CRAFTING_TABLE,
+                "a plain 2x2 of oak planks must still be a crafting table, got "
+                        + table.getItem());
+
+        ItemStack threeCorners = craft(singleplayer, new String[] {
+                "P P",
+                "   ",
+                "P  " });
+        assertTrue(threeCorners.isEmpty(),
+                "three planks should make nothing, got " + threeCorners.getItem());
+    }
+
+    /**
+     * Craft a 3x3 pattern and hand back what comes out, or an empty stack if nothing matches.
+     * 'P' is oak planks and a space is an empty slot.
+     */
+    private static ItemStack craft(TestSingleplayerContext singleplayer, String[] pattern) {
+        return singleplayer.getServer().computeOnServer(server -> {
+            List<ItemStack> slots = new ArrayList<>();
+            for (String line : pattern) {
+                for (char cell : line.toCharArray()) {
+                    slots.add(cell == 'P' ? new ItemStack(Items.OAK_PLANKS) : ItemStack.EMPTY);
+                }
+            }
+            CraftingRecipeInput input = CraftingRecipeInput.create(3, 3, slots);
+            ServerWorld world = server.getOverworld();
+            return server.getRecipeManager()
+                    .getFirstMatch(RecipeType.CRAFTING, input, world)
+                    .map(match -> match.value().craft(input, world.getRegistryManager()))
+                    .orElse(ItemStack.EMPTY);
+        });
+    }
+
+    // ------------------------------------------------------------------ the roll
+
+    /**
+     * The roll has to be able to land on every stop except the one you are standing on, and on
+     * each of them exactly once — a fencepost slip here would silently make one version
+     * unreachable and another twice as likely, which no amount of playing would ever reveal.
+     */
+    private void theRollLandsAnywhereButHere() {
+        int size = Timeline.size();
+        for (int here : new int[] { 0, 1, size / 2, size - 2, size - 1 }) {
+            boolean[] seen = new boolean[size];
+            for (int raw = 0; raw < size - 1; raw++) {
+                int pick = DialScreen.pickFrom(here, size, raw);
+                assertTrue(pick >= 0 && pick < size,
+                        "roll from " + here + " landed off the dial at " + pick);
+                assertTrue(pick != here, "roll from " + here + " landed on itself");
+                assertTrue(!seen[pick], "roll from " + here + " can land on " + pick + " twice");
+                seen[pick] = true;
+            }
+            for (int index = 0; index < size; index++) {
+                assertTrue(seen[index] == (index != here),
+                        "roll from " + here + " can never reach " + index);
+            }
+        }
+    }
+
+    /**
+     * The other half of the dial: the versions this computer can really open. The list is scanned
+     * off disk, so this checks the shape of what came back rather than naming versions — the set
+     * changes whenever another old client is installed.
+     */
+    private void theRealVersionsAreReallyThere() {
+        List<RealVersions.Installed> installed = RealVersions.all();
+        System.out.println("[timemachine] real clients found: " + installed.size());
+
+        int previous = -1;
+        for (RealVersions.Installed one : installed) {
+            System.out.println("[timemachine]   " + one.name() + " -> " + one.script());
+            assertTrue(Files.isExecutable(one.script()),
+                    one.name() + " is listed but its launch script is not runnable");
+            assertTrue(one.index() > previous, "the installed list is not in timeline order");
+            previous = one.index();
+        }
+
+        assertTrue(RealVersions.any() == !installed.isEmpty(),
+                "any() disagrees with all()");
+
+        // nearestTo must really be the nearest, at every stop on the dial.
+        for (int index = 0; index < Timeline.size(); index++) {
+            RealVersions.Installed nearest = RealVersions.nearestTo(index);
+            if (installed.isEmpty()) {
+                assertTrue(nearest == null, "nearestTo found something with nothing installed");
+                continue;
+            }
+            int best = Integer.MAX_VALUE;
+            for (RealVersions.Installed one : installed) {
+                best = Math.min(best, Math.abs(one.index() - index));
+            }
+            assertTrue(Math.abs(nearest.index() - index) == best,
+                    "nearestTo(" + index + ") returned " + nearest.name() + ", not the closest");
+        }
     }
 
     // ------------------------------------------------------------------ dimensions

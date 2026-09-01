@@ -3,9 +3,9 @@
 A block that turns the world back to any version of Minecraft, from the four-day prototype Notch
 put on TIGSource in May 2009 through to the present.
 
-It obviously cannot swap out the jar you are running. What it does instead is put the rules and
-the contents of the game back the way they were on the date you dial in. Set it to Beta 1.7.3 and
-hunger stops draining, sprinting stops working, nothing drops experience, every swing lands for
+Most of the time it cannot swap out the jar you are running, so what it does instead is put the
+rules and the contents of the game back the way they were on the date you dial in. Set it to
+Beta 1.7.3 and hunger stops draining, sprinting stops working, nothing drops experience, every swing lands for
 full damage again, and anything invented after July 2011 is taken off you and held until you come
 forward. Set it to Classic and you are left with the blocks that existed in 2009.
 
@@ -16,14 +16,27 @@ Built for Minecraft 1.21.11 on Fabric.
 Craft the machine, place it, right-click it:
 
 ```
-O E O      O  obsidian        E  eye of ender
-R C R      R  block of redstone
-O O O      C  clock
+P . P      P  oak planks
+. . .
+P . P
 ```
+
+Four oak planks, in the corners. Not the middle 2x2 — that square is already the crafting table,
+and two recipes matching the same grid is a coin flip the player never gets to see.
 
 The dial lists every version. Pick one and the right-hand panel tells you what the trip will cost
 — worked out against your actual inventory, so it says "your netherite pickaxe", not "some items".
 Then pull the lever. Arrow keys turn the dial, Enter engages.
+
+**Roll** spins the dial for you. It can land on any stop except the one you are already on, and
+the panel says so before you commit to anything.
+
+**Really go there** is the other kind of time travel. A handful of versions are installed on this
+computer as genuine, playable clients — the actual Alpha 1.2.6, the actual Beta 1.7.3 — and for
+those the machine can close this game and open the real one. The panel always names which client
+you would get, including when the nearest real version is not the one you rolled. It asks twice,
+because it quits Minecraft to do it. With none installed the button stays dark and the dial is
+still a dial.
 
 `/timemachine now` says where you are and what has not been invented yet. `/timemachine list`
 prints the dial. `/timemachine vault` says how much of your gear the future is holding.
