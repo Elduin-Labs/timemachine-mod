@@ -43,6 +43,7 @@ public final class RealVersions {
             new Candidate("minecraft-beta181",    "play.sh",       "b1.8.1"),
             new Candidate("minecraft-beta19pre2", "play.sh",       "b1.9-pre6"),
             new Candidate("minecraft-beta19pre3", "play.sh",       "b1.9-pre6"),
+            new Candidate("minecraft-1.0",        "play.sh",       "1.0.0"),
             new Candidate("minecraft-1.9",        "play.sh",       "1.9.4"),
             new Candidate("minecraft-1.12.2",     "play.sh",       "1.12.2"));
 
