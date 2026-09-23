@@ -37,7 +37,8 @@ public class TimeState extends PersistentState {
 
     public static final Codec<TimeState> CODEC = RecordCodecBuilder.create(i -> i.group(
             Codec.STRING.optionalFieldOf("version", "1.21.11").forGetter(s -> s.versionId),
-            Held.CODEC.listOf().optionalFieldOf("vault", List.of()).forGetter(s -> s.vault)
+            Held.CODEC.listOf().optionalFieldOf("vault", List.of()).forGetter(s -> s.vault),
+            Uuids.CODEC.listOf().optionalFieldOf("given", List.of()).forGetter(s -> s.given)
     ).apply(i, TimeState::new));
 
     public static final PersistentStateType<TimeState> TYPE = new PersistentStateType<>(
@@ -46,17 +47,19 @@ public class TimeState extends PersistentState {
     private int index = Timeline.PRESENT;
     private String versionId = Timeline.get(Timeline.PRESENT).id();
     private final List<Held> vault = new ArrayList<>();
+    private final List<UUID> given = new ArrayList<>();
 
     public TimeState() {
     }
 
-    private TimeState(String versionId, List<Held> vault) {
+    private TimeState(String versionId, List<Held> vault, List<UUID> given) {
         // The id, not the index, is what gets written down: inserting a version into the timeline
         // must not silently move every existing save to a different era.
         int found = Timeline.indexOf(versionId);
         this.index = found < 0 ? Timeline.PRESENT : found;
         this.versionId = Timeline.get(this.index).id();
         this.vault.addAll(vault);
+        this.given.addAll(given);
     }
 
     public static TimeState get(ServerWorld world) {
@@ -113,5 +116,25 @@ public class TimeState extends PersistentState {
     /** How many stacks are being held back from {@code owner} right now. */
     public int heldCount(UUID owner) {
         return (int) vault.stream().filter(h -> h.owner().equals(owner)).count();
+    }
+
+    // ---------------------------------------------------------------- the free machine
+
+    /**
+     * Records that {@code player} has been handed their starting machine.
+     *
+     * <p>The save remembers who has had one, so this is true exactly once per player per world.
+     * Logging in again does not print a second machine, and a player who loses theirs crafts the
+     * next one like anyone else.
+     *
+     * @return true the first time it is called for a player, false every login after that
+     */
+    public boolean markGiven(UUID player) {
+        if (given.contains(player)) {
+            return false;
+        }
+        given.add(player);
+        markDirty();
+        return true;
     }
 }

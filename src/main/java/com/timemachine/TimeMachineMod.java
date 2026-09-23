@@ -13,12 +13,15 @@ import net.minecraft.block.Block;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemGroups;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.BlockSoundGroup;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 /**
@@ -36,6 +39,7 @@ public class TimeMachineMod implements ModInitializer {
     public static final Identifier TIME_MACHINE_ID = Identifier.of(MOD_ID, "time_machine");
 
     public static Block TIME_MACHINE;
+    public static Item TIME_MACHINE_ITEM;
 
     @Override
     public void onInitialize() {
@@ -55,8 +59,10 @@ public class TimeMachineMod implements ModInitializer {
                 Era.set(TimeState.get(server.getOverworld()).index()));
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> Era.set(Timeline.PRESENT));
 
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-                ServerPlayNetworking.send(handler.getPlayer(), new TimePayloads.EraSync(Era.index())));
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            ServerPlayNetworking.send(handler.getPlayer(), new TimePayloads.EraSync(Era.index()));
+            giveFirstMachine(handler.getPlayer());
+        });
 
         ServerTickEvents.END_SERVER_TICK.register(Anachronism::tick);
 
@@ -76,10 +82,30 @@ public class TimeMachineMod implements ModInitializer {
                         .requiresTool()
                         .luminance(state -> 7)));
 
-        Item item = Registry.register(Registries.ITEM, itemKey, new BlockItem(TIME_MACHINE,
+        TIME_MACHINE_ITEM = Registry.register(Registries.ITEM, itemKey, new BlockItem(TIME_MACHINE,
                 new Item.Settings().registryKey(itemKey).useBlockPrefixedTranslationKey()));
 
-        ItemGroupEvents.modifyEntriesEvent(ItemGroups.FUNCTIONAL).register(entries -> entries.add(item));
+        ItemGroupEvents.modifyEntriesEvent(ItemGroups.FUNCTIONAL)
+                .register(entries -> entries.add(TIME_MACHINE_ITEM));
+    }
+
+    /**
+     * Hands a player their machine the first time they join a world.
+     *
+     * <p>A mod whose only entry point is a recipe you have to be told about is a mod most people
+     * never see. The save remembers who has had one, so this fires once per player per world
+     * rather than every login — see {@link TimeState#markGiven}. Lose it and you craft the next one.
+     */
+    private static void giveFirstMachine(ServerPlayerEntity player) {
+        if (!TimeState.get(player.getEntityWorld()).markGiven(player.getUuid())) {
+            return;
+        }
+        ItemStack machine = new ItemStack(TIME_MACHINE_ITEM);
+        if (!player.getInventory().insertStack(machine)) {
+            player.dropItem(machine, false);
+        }
+        player.sendMessage(Text.literal("Your Time Machine. Put it down and right-click it.")
+                .formatted(Formatting.AQUA), false);
     }
 
     /** The dial has been turned and the lever pulled. */
