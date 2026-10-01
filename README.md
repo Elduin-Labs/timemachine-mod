@@ -38,6 +38,11 @@ you would get, including when the nearest real version is not the one you rolled
 because it quits Minecraft to do it. With none installed the button stays dark and the dial is
 still a dial.
 
+Real clients on this computer: Alpha 1.2.6, Beta 1.0, 1.3, 1.5, 1.7.3, 1.8.1 and 1.9, 1.0, 1.8.9,
+1.9, 1.12.2, 1.14.4, 1.16.5, 1.20.6, 1.21 and 1.21.8. The newer ones are set up by
+`python3 tools/make_real_client.py <version>`, which writes `~/minecraft-<version>/play.sh` from the
+copy the official launcher already downloaded — play a version once from the launcher first.
+
 `/timemachine now` says where you are and what has not been invented yet. `/timemachine list`
 prints the dial. `/timemachine vault` says how much of your gear the future is holding.
 `/timemachine set <version>` is the operator escape hatch.

@@ -46,7 +46,13 @@ public final class RealVersions {
             new Candidate("minecraft-1.0",        "play.sh",       "1.0.0"),
             new Candidate("minecraft-1.9",        "play.sh",       "1.9.4"),
             new Candidate("minecraft-1.12.2",     "play.sh",       "1.12.2"),
-            // Written by tools/make_real_client.py from the launcher's own copy of 1.21.8.
+            // From here on the scripts are written by tools/make_real_client.py, from the
+            // launcher's own downloaded copy of each version.
+            new Candidate("minecraft-1.8.9",      "play.sh",       "1.8.9"),
+            new Candidate("minecraft-1.14.4",     "play.sh",       "1.14.4"),
+            new Candidate("minecraft-1.16.5",     "play.sh",       "1.16.5"),
+            new Candidate("minecraft-1.20.6",     "play.sh",       "1.20.6"),
+            new Candidate("minecraft-1.21",       "play.sh",       "1.21"),
             new Candidate("minecraft-1.21.8",     "play.sh",       "1.21.8"));
 
     /** An installed client, resolved to a real file on disk. */
